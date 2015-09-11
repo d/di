@@ -71,6 +71,16 @@ struct referable<const T&, TDependency> {
     using type = std::conditional_t<TDependency::template is_referable<const T&>::value, const T&, T>;
 };
 
+template<class T>
+struct variadic {
+    using type = T;
+};
+
+template<class TInit, class... Ts>
+struct variadic<aux::pair<TInit, aux::variadic<Ts...>>> {
+    using type = aux::pair<TInit, aux::type_list<int, int>>;
+};
+
 #if defined(_MSC_VER) // __pph__
     template<class T, class TDependency>
     struct referable<T&&, TDependency> {
@@ -113,7 +123,7 @@ protected:
     template<class T, class TName = no_name, class TIsRoot = std::false_type>
     struct is_creatable {
         using TDependency = std::remove_reference_t<decltype(binder::resolve<T, TName>((injector*)0))>;
-        using TCtor = typename type_traits::ctor_traits__<typename TDependency::given>::type;
+        using TCtor = typename variadic<typename type_traits::ctor_traits__<typename TDependency::given>::type>::type;
 
         using type = std::conditional_t<
             std::is_same<_, typename TDependency::given>::value
@@ -252,7 +262,7 @@ private:
         using dependency_t = std::remove_reference_t<decltype(dependency)>;
         using expected_t = typename dependency_t::expected;
         using given_t = typename dependency_t::given;
-        using ctor_t = typename type_traits::ctor_traits__<given_t>::type;
+        using ctor_t = typename variadic<typename type_traits::ctor_traits__<given_t>::type>::type;
         using type_t = type_traits::typename_traits_t<T, given_t>;
         using provider_t = core::provider<expected_t, given_t, TName, ctor_t, injector>;
         using wrapper_t = decltype(static_cast<dependency__<dependency_t>&&>(dependency).template create<type_t>(provider_t{*this}));
@@ -273,7 +283,7 @@ private:
         using dependency_t = std::remove_reference_t<decltype(dependency)>;
         using expected_t = typename dependency_t::expected;
         using given_t = typename dependency_t::given;
-        using ctor_t = typename type_traits::ctor_traits__<given_t>::type;
+        using ctor_t = typename variadic<typename type_traits::ctor_traits__<given_t>::type>::type;
         using type_t = type_traits::typename_traits_t<T, given_t>;
         using provider_t = successful::provider<expected_t, given_t, ctor_t, injector>;
         using wrapper_t = decltype(static_cast<dependency__<dependency_t>&&>(dependency).template create<type_t>(provider_t{*this}));

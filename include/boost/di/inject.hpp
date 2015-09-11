@@ -39,6 +39,12 @@ struct combine<aux::type_list<T1...>, aux::type_list<T2...>> {
     using type = aux::type_list<typename combine_impl<T1, T2>::type...>;
 };
 
+template<class... T1, class... T2>
+struct combine<aux::variadic<T1...>, aux::type_list<T2...>> {
+    using type = aux::variadic<typename combine_impl<T1, T2>::type...>;
+};
+
+
 template<class T1, class T2>
 using combine_t = typename combine<T1, T2>::type;
 

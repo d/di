@@ -242,6 +242,10 @@ struct function_traits<R(*)(TArgs...)> {
     using base_type = none_type;
     using args = type_list<TArgs...>;
 };
+template<class...>
+struct variadic {
+    using type = variadic;
+};
 template<class R, class... TArgs>
 struct function_traits<R(*)(TArgs..., ...)> {
     template<int, class, class...>
@@ -256,7 +260,7 @@ struct function_traits<R(*)(TArgs..., ...)> {
     };
     template<int N, int... Ns, class... Ts>
     struct add_variadic<N, index_sequence<Ns...>, Ts...> {
-        using type = type_list<typename add_variadic_impl<N, Ns, Ts>::type...>;
+        using type = variadic<typename add_variadic_impl<N, Ns, Ts>::type...>;
     };
     using result_type = R;
     using base_type = none_type;
@@ -877,7 +881,6 @@ namespace boost { namespace di { inline namespace v1 { namespace type_traits {
 template<class, class = void> struct is_injectable : std::false_type { }; template<class T> struct is_injectable<T, typename aux::void_t<typename T::boost_di_inject__>::type> : std::true_type { };
 struct direct { };
 struct uniform { };
-struct variadic { };
 template<class T, int>
 using get = T;
 template<template<class...> class, class, class, class = int>
@@ -1111,7 +1114,7 @@ public:
           , TBase
         >{};
     }
-    template<class T, BOOST_DI_REQUIRES(externable<T>::value && !aux::is_narrowed<TExpected, T>::value || std::is_same<_, TExpected>::value) = 0>
+    template<class T, BOOST_DI_REQUIRES(externable<T>::value && !aux::is_narrowed<TExpected, T>::value || std::is_same<_(...), TExpected>::value || std::is_same<_, TExpected>::value) = 0>
     auto to(T&& object) const noexcept {
         using dependency = dependency<
             scopes::external
@@ -2123,6 +2126,14 @@ template<class T, class TDependency>
 struct referable<const T&, TDependency> {
     using type = std::conditional_t<TDependency::template is_referable<const T&>::value, const T&, T>;
 };
+template<class T>
+struct variadic {
+    using type = T;
+};
+template<class TInit, class... Ts>
+struct variadic<aux::pair<TInit, aux::variadic<Ts...>>> {
+    using type = aux::pair<TInit, aux::type_list<int, int>>;
+};
 #if defined(_MSC_VER)
     template<class T, class TDependency>
     struct referable<T&&, TDependency> {
@@ -2153,7 +2164,7 @@ protected:
     template<class T, class TName = no_name, class TIsRoot = std::false_type>
     struct is_creatable {
         using TDependency = std::remove_reference_t<decltype(binder::resolve<T, TName>((injector*)0))>;
-        using TCtor = typename type_traits::ctor_traits__<typename TDependency::given>::type;
+        using TCtor = typename variadic<typename type_traits::ctor_traits__<typename TDependency::given>::type>::type;
         using type = std::conditional_t<
             std::is_same<_, typename TDependency::given>::value
           , void
@@ -2263,7 +2274,7 @@ private:
         using dependency_t = std::remove_reference_t<decltype(dependency)>;
         using expected_t = typename dependency_t::expected;
         using given_t = typename dependency_t::given;
-        using ctor_t = typename type_traits::ctor_traits__<given_t>::type;
+        using ctor_t = typename variadic<typename type_traits::ctor_traits__<given_t>::type>::type;
         using type_t = type_traits::typename_traits_t<T, given_t>;
         using provider_t = core::provider<expected_t, given_t, TName, ctor_t, injector>;
         using wrapper_t = decltype(static_cast<dependency__<dependency_t>&&>(dependency).template create<type_t>(provider_t{*this}));
@@ -2279,7 +2290,7 @@ private:
         using dependency_t = std::remove_reference_t<decltype(dependency)>;
         using expected_t = typename dependency_t::expected;
         using given_t = typename dependency_t::given;
-        using ctor_t = typename type_traits::ctor_traits__<given_t>::type;
+        using ctor_t = typename variadic<typename type_traits::ctor_traits__<given_t>::type>::type;
         using type_t = type_traits::typename_traits_t<T, given_t>;
         using provider_t = successful::provider<expected_t, given_t, ctor_t, injector>;
         using wrapper_t = decltype(static_cast<dependency__<dependency_t>&&>(dependency).template create<type_t>(provider_t{*this}));
@@ -2298,7 +2309,7 @@ protected:
     template<class T, class TName = no_name, class TIsRoot = std::false_type>
     struct is_creatable {
         using TDependency = std::remove_reference_t<decltype(binder::resolve<T, TName>((injector*)0))>;
-        using TCtor = typename type_traits::ctor_traits__<typename TDependency::given>::type;
+        using TCtor = typename variadic<typename type_traits::ctor_traits__<typename TDependency::given>::type>::type;
         using type = std::conditional_t<
             std::is_same<_, typename TDependency::given>::value
           , void
@@ -2408,7 +2419,7 @@ private:
         using dependency_t = std::remove_reference_t<decltype(dependency)>;
         using expected_t = typename dependency_t::expected;
         using given_t = typename dependency_t::given;
-        using ctor_t = typename type_traits::ctor_traits__<given_t>::type;
+        using ctor_t = typename variadic<typename type_traits::ctor_traits__<given_t>::type>::type;
         using type_t = type_traits::typename_traits_t<T, given_t>;
         using provider_t = core::provider<expected_t, given_t, TName, ctor_t, injector>;
         using wrapper_t = decltype(static_cast<dependency__<dependency_t>&&>(dependency).template create<type_t>(provider_t{*this}));
@@ -2423,7 +2434,7 @@ private:
         using dependency_t = std::remove_reference_t<decltype(dependency)>;
         using expected_t = typename dependency_t::expected;
         using given_t = typename dependency_t::given;
-        using ctor_t = typename type_traits::ctor_traits__<given_t>::type;
+        using ctor_t = typename variadic<typename type_traits::ctor_traits__<given_t>::type>::type;
         using type_t = type_traits::typename_traits_t<T, given_t>;
         using provider_t = successful::provider<expected_t, given_t, ctor_t, injector>;
         using wrapper_t = decltype(static_cast<dependency__<dependency_t>&&>(dependency).template create<type_t>(provider_t{*this}));
@@ -2804,6 +2815,10 @@ struct combine;
 template<class... T1, class... T2>
 struct combine<aux::type_list<T1...>, aux::type_list<T2...>> {
     using type = aux::type_list<typename combine_impl<T1, T2>::type...>;
+};
+template<class... T1, class... T2>
+struct combine<aux::variadic<T1...>, aux::type_list<T2...>> {
+    using type = aux::variadic<typename combine_impl<T1, T2>::type...>;
 };
 template<class T1, class T2>
 using combine_t = typename combine<T1, T2>::type;

@@ -126,6 +126,11 @@ struct function_traits<R(*)(TArgs...)> {
     using args = type_list<TArgs...>;
 };
 
+template<class...>
+struct variadic {
+    using type = variadic;
+};
+
 template<class R, class... TArgs>
 struct function_traits<R(*)(TArgs..., ...)> {
     template<int, class, class...>
@@ -143,7 +148,7 @@ struct function_traits<R(*)(TArgs..., ...)> {
 
     template<int N, int... Ns, class... Ts>
     struct add_variadic<N, index_sequence<Ns...>, Ts...> {
-        using type = type_list<typename add_variadic_impl<N, Ns, Ts>::type...>;
+        using type = variadic<typename add_variadic_impl<N, Ns, Ts>::type...>;
     };
 
     using result_type = R;
