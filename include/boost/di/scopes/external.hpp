@@ -62,6 +62,26 @@ public:
     };
 
     template<class TExpected, class TGiven>
+    struct scope<TExpected, std::initializer_list<TGiven>> {
+        template<class>
+        using is_referable = std::false_type;
+
+        explicit scope(const std::initializer_list<TGiven>& object)
+            : object_(object)
+        { }
+
+        template<class, class TProvider>
+        static std::initializer_list<TGiven> try_create(const TProvider&);
+
+        template<class, class TProvider>
+        auto create(const TProvider&) const noexcept {
+            return wrappers::unique<std::initializer_list<TGiven>>{object_};
+        }
+
+        std::initializer_list<TGiven> object_;
+    };
+
+    template<class TExpected, class TGiven>
     struct scope<TExpected, TGiven&,
         BOOST_DI_REQUIRES(!aux::is_callable<TGiven, const injector&>::value &&
                           !aux::is_callable<TGiven, const injector&, const arg<aux::none_type, TExpected, TGiven>&>::value)

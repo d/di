@@ -630,7 +630,7 @@ test multi_bindings_share_object_between_list_and_parameter = [] {
 };
 
 test multi_bindings_with_scope = [] {
-/*    struct c {*/
+   //struct c {
         //c(std::shared_ptr<std::vector<std::shared_ptr<i1>>> v1
         //, std::shared_ptr<std::vector<std::shared_ptr<i1>>> v2) {
         ////, std::vector<std::shared_ptr<i1>>& v3) {
@@ -643,9 +643,28 @@ test multi_bindings_with_scope = [] {
         //di::bind<i1*[]>().to<impl1>()
     //);
 
-    /*injector.create<c>();*/
+    //injector.create<c>();
 };
 
 test multi_bindings_with_initializer_list = [] {
+    auto injector = di::make_injector(
+        di::bind<int*[]>().to({1, 2, 3, 4})
+    );
+
+    auto v = injector.create<std::vector<int>>();
+    expect(v.size() == 4);
+    expect(v[0] == 1);
+    expect(v[1] == 2);
+    expect(v[2] == 3);
+    expect(v[3] == 4);
+
+    expect(injector.create<std::list<int>>().size() == 4);
+    expect(!injector.create<std::forward_list<int>>().empty());
+    expect(injector.create<std::stack<int>>().size() == 4);
+    expect(injector.create<std::queue<int>>().size() == 4);
+    //expect(injector.create<std::priority_queue<int>>().size() == 4);
+    expect(injector.create<std::deque<int>>().size() == 4);
+    expect(injector.create<std::set<int>>().size() == 4);
+    expect(injector.create<std::unordered_set<int>>().size() == 4);
 };
 

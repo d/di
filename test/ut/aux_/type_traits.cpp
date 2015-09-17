@@ -6,6 +6,14 @@
 //
 #include <memory>
 #include <string>
+#include <vector>
+#include <list>
+#include <queue>
+#include <stack>
+#include <forward_list>
+#include <deque>
+#include <set>
+#include <unordered_set>
 #include "boost/di/aux_/type_traits.hpp"
 
 namespace boost { namespace di { inline namespace v1 { namespace aux {
@@ -97,6 +105,9 @@ test remove_specifiers_types = [] {
     static_expect(std::is_same<int, remove_specifiers_t<const int*>>{});
 };
 
+template<class T>
+using deref_type_t = typename deref_type<T>::type;
+
 test deref_types = [] {
     static_expect(std::is_same<deref_type_t<void>, void>{});
     static_expect(std::is_same<deref_type_t<int>, int>{});
@@ -105,6 +116,8 @@ test deref_types = [] {
     static_expect(std::is_same<deref_type_t<std::shared_ptr<int>>, int>{});
     static_expect(std::is_same<deref_type_t<boost::shared_ptr<int>>, int>{});
     static_expect(std::is_same<deref_type_t<std::weak_ptr<int>>, int>{});
+    static_expect(std::is_same<deref_type_t<std::vector<std::shared_ptr<int>>>, int*[]>{});
+    static_expect(std::is_same<deref_type_t<std::shared_ptr<std::vector<std::shared_ptr<int>>>>, int*[]>{});
 };
 
 test decay_types = [] {
@@ -125,6 +138,8 @@ test decay_types = [] {
         static_expect(std::is_same<T, decay_t<volatile T>>{});
         static_expect(std::is_same<T, decay_t<T&&>>{});
         static_expect(std::is_same<T, decay_t<const T&&>>{});
+        static_expect(std::is_same<T*[], decay_t<std::vector<std::shared_ptr<T>>>>{});
+        static_expect(std::is_same<T*[], decay_t<std::shared_ptr<std::vector<std::shared_ptr<T>>>>>{});
     };
 
     struct c { };

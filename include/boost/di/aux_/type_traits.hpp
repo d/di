@@ -81,59 +81,68 @@ using remove_specifiers =
 template<class T>
 using remove_specifiers_t = typename remove_specifiers<T>::type;
 
-template<class T, class = int>
+template<class T>
 struct deref_type {
     using type = T;
 };
 
 template<class T, class TDeleter>
 struct deref_type<std::unique_ptr<T, TDeleter>> {
-    using type = T;
+    using type = remove_specifiers_t<typename deref_type<T>::type>;
 };
 
 template<class T>
 struct deref_type<std::shared_ptr<T>> {
-    using type = T;
+    using type = remove_specifiers_t<typename deref_type<T>::type>;
 };
 
 template<class T>
 struct deref_type<boost::shared_ptr<T>> {
-    using type = T;
+    using type = remove_specifiers_t<typename deref_type<T>::type>;
 };
 
 template<class T>
 struct deref_type<std::weak_ptr<T>> {
-    using type = T;
+    using type = remove_specifiers_t<typename deref_type<T>::type>;
 };
 
-std::false_type is_container_impl(...);
-
-template<class T>
-auto is_container_impl(T&& t) -> is_valid_expr<
-    decltype(t.begin())
-  , decltype(t.end())
->;
-
-BOOST_DI_HAS_TYPE(has_traits_type, traits_type);
-
-template<class T>
-using is_container = std::integral_constant<bool,
-    decltype(is_container_impl(std::declval<T>()))::value && !has_traits_type<T>::value /*std::string*/
->;
-
-template<class T>
-struct deref_type<T, BOOST_DI_REQUIRES(is_container<T>::value)> {
-    using type = typename deref_type<typename T::value_type>::type*[];
+template<class T, class TAllocator>
+struct deref_type<std::vector<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
 };
 
-template<typename T>
-using deref_type_t = typename deref_type<T>::type;
+template<class T, class TAllocator>
+struct deref_type<std::list<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+
+template<class T, class TAllocator>
+struct deref_type<std::forward_list<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+
+template<class T, class TAllocator>
+struct deref_type<std::priority_queue<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+
+template<class T, class TAllocator>
+struct deref_type<std::deque<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+
+template<class T, class TAllocator>
+struct deref_type<std::set<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+
+template<class T, class TAllocator>
+struct deref_type<std::unordered_set<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
 
 template<class T>
-using decay = deref_type<remove_specifiers_t<deref_type_t<remove_specifiers_t<T>>>>;
-
-template<class T>
-using decay_t = typename decay<T>::type;
+using decay_t = typename deref_type<remove_specifiers_t<T>>::type;
 
 template<class T1, class T2>
 struct is_same_or_base_of {

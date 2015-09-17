@@ -156,6 +156,19 @@ public:
         return dependency{static_cast<T&&>(object)};
     }
 
+    template<class T>
+    auto to(std::initializer_list<T>&& object) const noexcept {
+        using dependency = dependency<
+            scopes::external
+          , TExpected
+          , std::initializer_list<T>
+          , TName
+          , TPriority
+          , TBase
+        >;
+        return dependency{object};
+    }
+
     template<class T, BOOST_DI_REQUIRES(has_configure<T>::value) = 0>
     auto to(const T& object) const noexcept {
         using dependency = dependency<

@@ -209,47 +209,56 @@ using remove_specifiers =
     std::remove_cv<std::remove_pointer_t<std::remove_reference_t<T>>>;
 template<class T>
 using remove_specifiers_t = typename remove_specifiers<T>::type;
-template<class T, class = int>
+template<class T>
 struct deref_type {
     using type = T;
 };
 template<class T, class TDeleter>
 struct deref_type<std::unique_ptr<T, TDeleter>> {
-    using type = T;
+    using type = remove_specifiers_t<typename deref_type<T>::type>;
 };
 template<class T>
 struct deref_type<std::shared_ptr<T>> {
-    using type = T;
+    using type = remove_specifiers_t<typename deref_type<T>::type>;
 };
 template<class T>
 struct deref_type<boost::shared_ptr<T>> {
-    using type = T;
+    using type = remove_specifiers_t<typename deref_type<T>::type>;
 };
 template<class T>
 struct deref_type<std::weak_ptr<T>> {
-    using type = T;
+    using type = remove_specifiers_t<typename deref_type<T>::type>;
 };
-std::false_type is_container_impl(...);
-template<class T>
-auto is_container_impl(T&& t) -> is_valid_expr<
-    decltype(t.begin())
-  , decltype(t.end())
->;
-template<class, class = void> struct has_traits_type : std::false_type { }; template<class T> struct has_traits_type<T, typename aux::void_t<typename T::traits_type>::type> : std::true_type { };
-template<class T>
-using is_container = std::integral_constant<bool,
-    decltype(is_container_impl(std::declval<T>()))::value && !has_traits_type<T>::value
->;
-template<class T>
-struct deref_type<T, BOOST_DI_REQUIRES(is_container<T>::value)> {
-    using type = typename deref_type<typename T::value_type>::type*[];
+template<class T, class TAllocator>
+struct deref_type<std::vector<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
 };
-template<typename T>
-using deref_type_t = typename deref_type<T>::type;
+template<class T, class TAllocator>
+struct deref_type<std::list<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+template<class T, class TAllocator>
+struct deref_type<std::forward_list<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+template<class T, class TAllocator>
+struct deref_type<std::priority_queue<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+template<class T, class TAllocator>
+struct deref_type<std::deque<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+template<class T, class TAllocator>
+struct deref_type<std::set<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
+template<class T, class TAllocator>
+struct deref_type<std::unordered_set<T, TAllocator>> {
+    using type = remove_specifiers_t<typename deref_type<T>::type>*[];
+};
 template<class T>
-using decay = deref_type<remove_specifiers_t<deref_type_t<remove_specifiers_t<T>>>>;
-template<class T>
-using decay_t = typename decay<T>::type;
+using decay_t = typename deref_type<remove_specifiers_t<T>>::type;
 template<class T1, class T2>
 struct is_same_or_base_of {
     static constexpr auto value =
@@ -408,6 +417,50 @@ template<class T, class U>
 using t_traits_t = typename t_traits<T, U>::type;
 template<class T, class U>
 using t_traits_t_ = typename t_traits<T, U>::type_;
+template<class T>
+struct get {
+    using type = T;
+};
+template<class T>
+struct get<std::shared_ptr<T>> {
+    using type = typename get<T>::type;
+};
+template<class T, class TAllocator>
+struct get<std::vector<T, TAllocator>> {
+    using type = T;
+};
+template<class T, class TAllocator>
+struct get<std::list<T, TAllocator>> {
+    using type = T;
+};
+template<class T, class TAllocator>
+struct get<std::forward_list<T, TAllocator>> {
+    using type = T;
+};
+template<class T, class TSequence>
+struct get<std::stack<T, TSequence>> {
+    using type = T;
+};
+template<class T, class TAllocator>
+struct get<std::queue<T, TAllocator>> {
+    using type = T;
+};
+template<class T, class TAllocator>
+struct get<std::priority_queue<T, TAllocator>> {
+    using type = T;
+};
+template<class T, class TAllocator>
+struct get<std::deque<T, TAllocator>> {
+    using type = T;
+};
+template<class T, class TAllocator>
+struct get<std::set<T, TAllocator>> {
+    using type = T;
+};
+template<class T, class TAllocator>
+struct get<std::unordered_set<T, TAllocator>> {
+    using type = T;
+};
 template<class TScope, class TExpected, class TGiven, class... Ts>
 class multi_bindings {
 public:
@@ -415,7 +468,7 @@ public:
     di::aux::remove_specifiers_t<typename TArg::type>
     operator()(const TInjector& injector, const TArg&) {
         using T = di::aux::remove_specifiers_t<typename TArg::type>;
-        using TArray = typename T::value_type;
+        using TArray = typename get<T>::type;
         TArray array[sizeof...(Ts)] = {
             static_cast<t_traits_t_<TArray, Ts>>(
                 static_cast<const di::core::injector__<TInjector>&>(injector).template
@@ -845,6 +898,21 @@ public:
         TExpected object_;
     };
     template<class TExpected, class TGiven>
+    struct scope<TExpected, std::initializer_list<TGiven>> {
+        template<class>
+        using is_referable = std::false_type;
+        explicit scope(const std::initializer_list<TGiven>& object)
+            : object_(object)
+        { }
+        template<class, class TProvider>
+        static std::initializer_list<TGiven> try_create(const TProvider&);
+        template<class, class TProvider>
+        auto create(const TProvider&) const noexcept {
+            return wrappers::unique<std::initializer_list<TGiven>>{object_};
+        }
+        std::initializer_list<TGiven> object_;
+    };
+    template<class TExpected, class TGiven>
     struct scope<TExpected, TGiven&,
         BOOST_DI_REQUIRES(!aux::is_callable<TGiven, const injector&>::value &&
                           !aux::is_callable<TGiven, const injector&, const arg<aux::none_type, TExpected, TGiven>&>::value)
@@ -1190,6 +1258,18 @@ public:
           , TBase
         >;
         return dependency{static_cast<T&&>(object)};
+    }
+    template<class T>
+    auto to(std::initializer_list<T>&& object) const noexcept {
+        using dependency = dependency<
+            scopes::external
+          , TExpected
+          , std::initializer_list<T>
+          , TName
+          , TPriority
+          , TBase
+        >;
+        return dependency{object};
     }
     template<class T, BOOST_DI_REQUIRES(has_configure<T>::value) = 0>
     auto to(const T& object) const noexcept {

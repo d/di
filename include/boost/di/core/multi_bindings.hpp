@@ -55,6 +55,61 @@ using t_traits_t = typename t_traits<T, U>::type;
 template<class T, class U>
 using t_traits_t_ = typename t_traits<T, U>::type_;
 
+template<class T>
+struct get {
+    using type = T;
+};
+
+template<class T>
+struct get<std::shared_ptr<T>> {
+    using type = typename get<T>::type;
+};
+
+template<class T, class TAllocator>
+struct get<std::vector<T, TAllocator>> {
+    using type = T;
+};
+
+template<class T, class TAllocator>
+struct get<std::list<T, TAllocator>> {
+    using type = T;
+};
+
+template<class T, class TAllocator>
+struct get<std::forward_list<T, TAllocator>> {
+    using type = T;
+};
+
+template<class T, class TSequence>
+struct get<std::stack<T, TSequence>> {
+    using type = T;
+};
+
+template<class T, class TAllocator>
+struct get<std::queue<T, TAllocator>> {
+    using type = T;
+};
+
+template<class T, class TAllocator>
+struct get<std::priority_queue<T, TAllocator>> {
+    using type = T;
+};
+
+template<class T, class TAllocator>
+struct get<std::deque<T, TAllocator>> {
+    using type = T;
+};
+
+template<class T, class TAllocator>
+struct get<std::set<T, TAllocator>> {
+    using type = T;
+};
+
+template<class T, class TAllocator>
+struct get<std::unordered_set<T, TAllocator>> {
+    using type = T;
+};
+
 template<class TScope, class TExpected, class TGiven, class... Ts>
 class multi_bindings {
 public:
@@ -62,7 +117,7 @@ public:
     di::aux::remove_specifiers_t<typename TArg::type>
     operator()(const TInjector& injector, const TArg&) {
         using T = di::aux::remove_specifiers_t<typename TArg::type>;
-        using TArray = typename T::value_type;
+        using TArray = typename get<T>::type;
         TArray array[sizeof...(Ts)] = {
             static_cast<t_traits_t_<TArray, Ts>>(
                 static_cast<const di::core::injector__<TInjector>&>(injector).template
