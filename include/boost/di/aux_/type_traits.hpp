@@ -68,6 +68,12 @@ using is_narrowed = std::integral_constant<bool,
     std::is_arithmetic<TDst>::value && !std::is_same<TSrc, TDst>::value
 >;
 
+template<class>
+struct is_array : std::false_type { };
+
+template<class T>
+struct is_array<T[]> : std::true_type { };
+
 template<class T>
 using remove_specifiers =
     std::remove_cv<std::remove_pointer_t<std::remove_reference_t<T>>>;

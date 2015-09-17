@@ -610,6 +610,42 @@ test multi_bindings_ctor_with_exposed_module = [] {
     injector.create<c>();
 };
 
+test multi_bindings_share_object_between_list_and_parameter = [] {
+    struct c {
+        c(std::vector<std::shared_ptr<i1>> v, std::shared_ptr<i1> i) {
+            expect(v.size() == 2);
+            expect(dynamic_cast<impl1*>(v[0].get()));
+            expect(dynamic_cast<impl1_2*>(v[1].get()));
+            expect(i == v[0]);
+        }
+    };
+
+    auto injector = di::make_injector(
+        di::bind<i1*[]>().to<i1, di::named<class Impl1_2>>()
+      , di::bind<i1>().to<impl1>().in(di::singleton) /*deduced as singleton as well*/
+      , di::bind<i1>().to<impl1_2>().named<class Impl1_2>()
+    );
+
+    injector.create<c>();
+};
+
 test multi_bindings_with_scope = [] {
+/*    struct c {*/
+        //c(std::shared_ptr<std::vector<std::shared_ptr<i1>>> v1
+        //, std::shared_ptr<std::vector<std::shared_ptr<i1>>> v2) {
+        ////, std::vector<std::shared_ptr<i1>>& v3) {
+            //expect(v1 == v2);
+            ////expect(*v2 == v3);
+        //}
+    //};
+
+    //auto injector = di::make_injector(
+        //di::bind<i1*[]>().to<impl1>()
+    //);
+
+    /*injector.create<c>();*/
+};
+
+test multi_bindings_with_initializer_list = [] {
 };
 

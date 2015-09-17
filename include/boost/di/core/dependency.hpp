@@ -8,6 +8,7 @@
 #define BOOST_DI_CORE_DEPENDENCY_HPP
 
 #include "boost/di/aux_/utility.hpp"
+#include "boost/di/core/multi_bindings.hpp"
 #include "boost/di/scopes/exposed.hpp"
 #include "boost/di/scopes/external.hpp"
 #include "boost/di/scopes/deduce.hpp"
@@ -42,71 +43,6 @@ struct dependency_impl<
 struct override { };
 
 struct dependency_base { };
-
-template<class T, class U>
-struct t_traits {
-    using type = U;
-    using type_ = U;
-};
-
-template<class T, class U>
-struct t_traits<T, named<U>> {
-    using type = detail::named_type<U, T>;
-    using type_ = T;
-};
-
-template<class T, class U>
-struct t_traits<std::shared_ptr<T>, U> {
-    using type = std::shared_ptr<U>;
-    using type_ = std::shared_ptr<U>;
-};
-
-template<class T, class U>
-struct t_traits<std::shared_ptr<T>, named<U>> {
-    using type = detail::named_type<U, std::shared_ptr<T>>;
-    using type_ = std::shared_ptr<T>;
-};
-
-template<class T, class D, class U>
-struct t_traits<std::unique_ptr<T, D>, U> {
-    using type = std::unique_ptr<U, D>;
-    using type_ = std::unique_ptr<U, D>;
-};
-
-template<class T, class D, class U>
-struct t_traits<std::unique_ptr<T, D>, named<U>> {
-    using type = di::detail::named_type<U, std::unique_ptr<T, D>>;
-    using type_ = std::unique_ptr<T, D>;
-};
-
-template<class T, class U>
-using t_traits_t = typename t_traits<T, U>::type;
-
-template<class T, class U>
-using t_traits_t_ = typename t_traits<T, U>::type_;
-
-template<class>
-struct is_array : std::false_type { };
-
-template<class T>
-struct is_array<T[]> : std::true_type { };
-
-template<class... Ts>
-struct multi_bindings_impl {
-    template<class TInjector, class TArg>
-    di::aux::remove_specifiers_t<typename TArg::type>
-    operator()(const TInjector& injector, const TArg&) const {
-        using T = di::aux::remove_specifiers_t<typename TArg::type>;
-        using TArray = typename T::value_type;
-        TArray array[sizeof...(Ts)] = {
-            static_cast<t_traits_t_<TArray, Ts>>(
-                static_cast<const di::core::injector__<TInjector>&>(injector).template
-                    create_successful_impl(di::aux::type<t_traits_t<TArray, Ts>>{})
-            )...
-        };
-        return T(std::make_move_iterator(array), std::make_move_iterator(array + sizeof...(Ts)));
-    }
-};
 
 template<
     class TScope
@@ -246,7 +182,7 @@ public:
         return dependency{object};
     }
 
-    template<class T, BOOST_DI_REQUIRES(aux::always<T>::value && !is_array<TExpected>::value) = 0, BOOST_DI_REQUIRES_MSG(typename concepts::boundable__<TExpected, T>::type) = 0>
+    template<class T, BOOST_DI_REQUIRES(aux::always<T>::value && !aux::is_array<TExpected>::value) = 0, BOOST_DI_REQUIRES_MSG(typename concepts::boundable__<TExpected, T>::type) = 0>
     auto to() const noexcept {
         return dependency<
             TScope
@@ -258,9 +194,9 @@ public:
         >{};
     }
 
-    template<class... Ts, BOOST_DI_REQUIRES((sizeof...(Ts) > 0) && is_array<TExpected>::value) = 0>
+    template<class... Ts, BOOST_DI_REQUIRES((sizeof...(Ts) > 0) && aux::is_array<TExpected>::value) = 0>
     auto to() const noexcept {
-        return to(multi_bindings_impl<Ts...>());
+        return to(multi_bindings<TScope, TExpected, TGiven, Ts...>{});
     }
 
     auto operator[](const override&) const noexcept {
