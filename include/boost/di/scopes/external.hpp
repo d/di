@@ -13,33 +13,44 @@
 
 namespace boost { namespace di { inline namespace v1 { namespace scopes {
 
+namespace detail {
+struct base_impl { void operator()(...) { } };
+
+template<class T>
+struct base : base_impl, std::conditional_t<std::is_class<T>::value, T, aux::none_type> { };
+
+template<typename U>
+std::false_type is_callable_impl(U*, aux::non_type<void (base_impl::*)(...), &U::operator()>* = 0);
+std::true_type is_callable_impl(...);
+
+template<class T>
+using is_callable = decltype(is_callable_impl((base<T>*)0));
+
+template<class T, class TExpected, class TGiven>
+struct arg {
+    using type = T;
+    using expected = TExpected;
+    using given = TGiven;
+};
+
+template<class T>
+struct wrapper_traits {
+    using type = wrappers::unique<T>;
+};
+
+template<class T>
+struct wrapper_traits<std::shared_ptr<T>> {
+    using type = wrappers::shared<T>;
+};
+
+template<class T>
+using wrapper_traits_t = typename wrapper_traits<T>::type;
+
 BOOST_DI_HAS_TYPE(has_result_type, result_type);
 
+} // detail
+
 class external {
-    struct injector {
-        template<class T> T create() const;
-    };
-
-    template<class T, class TExpected, class TGiven>
-    struct arg {
-        using type = T;
-        using expected = TExpected;
-        using given = TGiven;
-    };
-
-    template<class T>
-    struct wrapper_traits {
-        using type = wrappers::unique<T>;
-    };
-
-    template<class T>
-    struct wrapper_traits<std::shared_ptr<T>> {
-        using type = wrappers::shared<T>;
-    };
-
-    template<class T>
-    using wrapper_traits_t = typename wrapper_traits<T>::type;
-
 public:
     template<class TExpected, class, class = int>
     struct scope {
@@ -83,10 +94,7 @@ public:
     };
 
     template<class TExpected, class TGiven>
-    struct scope<TExpected, TGiven&,
-        BOOST_DI_REQUIRES(!aux::is_callable<TGiven, const injector&>::value &&
-                          !aux::is_callable<TGiven, const injector&, const arg<aux::none_type, TExpected, TGiven>&>::value)
-    > {
+    struct scope<TExpected, TGiven&, BOOST_DI_REQUIRES(!detail::is_callable<TGiven>::value)> {
         template<class>
         using is_referable = std::true_type;
 
@@ -107,10 +115,9 @@ public:
 
     template<class TExpected, class TGiven>
     struct scope<TExpected, TGiven,
-        BOOST_DI_REQUIRES(!aux::is_callable<TGiven, const injector&>::value &&
-                          !aux::is_callable<TExpected>::value &&
-                           aux::is_callable<TGiven>::value)
-    > {
+        BOOST_DI_REQUIRES(!detail::is_callable<TExpected>::value &&
+                           detail::is_callable<TGiven>::value &&
+                          !detail::has_result_type<TGiven>::value)> {
         template<class>
         using is_referable = std::false_type;
 
@@ -119,61 +126,28 @@ public:
         { }
 
         template<class T, class TProvider>
-        wrapper_traits_t<decltype(std::declval<TGiven>()())>
-        static try_create(const TProvider&);
+        T static try_create(const TProvider&);
 
-        template<class, class TProvider>
+        template<class, class TProvider,
+            BOOST_DI_REQUIRES(!aux::is_callable_with<TGiven, decltype(std::declval<TProvider>().injector_)>::value &&
+                               aux::is_callable_with<TGiven>::value) = 0>
         auto create(const TProvider&) const noexcept {
-            using wrapper = wrapper_traits_t<decltype(std::declval<TGiven>()())>;
+            using wrapper = detail::wrapper_traits_t<decltype(std::declval<TGiven>()())>;
             return wrapper{object_()};
         }
 
-        TGiven object_;
-    };
-
-    template<class TExpected, class TGiven>
-    struct scope<TExpected, TGiven,
-        BOOST_DI_REQUIRES(aux::is_callable<TGiven, const injector&>::value &&
-                         !has_result_type<TGiven>::value)
-    > {
-        template<class>
-        using is_referable = std::false_type;
-
-        explicit scope(const TGiven& object)
-            : object_(object)
-        { }
-
-        template<class T, class TProvider>
-        static T try_create(const TProvider&);
-
-        template<class, class TProvider>
+        template<class, class TProvider,
+            BOOST_DI_REQUIRES(aux::is_callable_with<TGiven, decltype(std::declval<TProvider>().injector_)>::value) = 0>
         auto create(const TProvider& provider) noexcept {
-            using wrapper = wrapper_traits_t<decltype((object_)(provider.injector_))>;
+            using wrapper = detail::wrapper_traits_t<decltype((object_)(provider.injector_))>;
             return wrapper{(object_)(provider.injector_)};
         }
 
-        TGiven object_;
-    };
-
-    template<class TExpected, class TGiven>
-    struct scope<TExpected, TGiven,
-        BOOST_DI_REQUIRES(aux::is_callable<TGiven, const injector&, const arg<aux::none_type, TExpected, TGiven>&>::value &&
-                         !has_result_type<TGiven>::value)
-    > {
-        template<class>
-        using is_referable = std::false_type;
-
-        explicit scope(const TGiven& object)
-            : object_(object)
-        { }
-
-        template<class T, class TProvider>
-        static T try_create(const TProvider&);
-
-        template<class T, class TProvider>
+        template<class T, class TProvider,
+            BOOST_DI_REQUIRES(aux::is_callable_with<TGiven, decltype(std::declval<TProvider>().injector_), const detail::arg<T, TExpected, TGiven>&>::value) = 0>
         auto create(const TProvider& provider) noexcept {
-            using wrapper = wrapper_traits_t<decltype((object_)(provider.injector_, arg<T, TExpected, TGiven>{}))>;
-            return wrapper{(object_)(provider.injector_, arg<T, TExpected, TGiven>{})};
+            using wrapper = detail::wrapper_traits_t<decltype((object_)(provider.injector_, detail::arg<T, TExpected, TGiven>{}))>;
+            return wrapper{(object_)(provider.injector_, detail::arg<T, TExpected, TGiven>{})};
         }
 
         TGiven object_;

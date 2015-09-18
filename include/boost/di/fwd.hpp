@@ -16,6 +16,7 @@ namespace std {
     template<class> class weak_ptr;
     template<class, class> class unique_ptr;
     template<class> struct char_traits;
+    template<class> class function;
 #ifdef _LIBCPP_VERSION // __pph__
 _LIBCPP_END_NAMESPACE_STD
 #else // __pph__
@@ -28,6 +29,7 @@ namespace std {
 
 namespace boost {
     template<class> class shared_ptr;
+    template<class> class function;
 } // boost
 
 namespace boost { namespace di { inline namespace v1 {
