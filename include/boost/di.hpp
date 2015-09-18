@@ -465,7 +465,7 @@ template<class TScope, class TExpected, class TGiven, class... Ts>
 class multi_bindings {
 public:
     template<class TInjector, class TArg>
-    di::aux::remove_specifiers_t<typename TArg::type>
+        auto
     operator()(const TInjector& injector, const TArg&) {
         using T = di::aux::remove_specifiers_t<typename TArg::type>;
         using TArray = typename get<T>::type;
@@ -864,6 +864,10 @@ template<class, class = void> struct has_result_type : std::false_type { }; temp
 class external {
     struct injector {
         template<class T> T create() const;
+        template<class> struct try_create;
+        template<class T, class...> _ create_impl(const aux::type<T>&) const;
+        template<class T, class...> _ create_successful_impl(const aux::type<T>&) const;
+        template<class...> struct is_creatable;
     };
     template<class T, class TExpected, class TGiven>
     struct arg {
@@ -915,7 +919,7 @@ public:
     template<class TExpected, class TGiven>
     struct scope<TExpected, TGiven&,
         BOOST_DI_REQUIRES(!aux::is_callable<TGiven, const injector&>::value &&
-                          !aux::is_callable<TGiven, const injector&, const arg<aux::none_type, TExpected, TGiven>&>::value)
+                          !aux::is_callable<TGiven, const injector&, const arg<_, TExpected, TGiven>&>::value)
     > {
         template<class>
         using is_referable = std::true_type;
@@ -988,7 +992,7 @@ public:
     };
     template<class TExpected, class TGiven>
     struct scope<TExpected, TGiven,
-        BOOST_DI_REQUIRES(aux::is_callable<TGiven, const injector&, const arg<aux::none_type, TExpected, TGiven>&>::value &&
+        BOOST_DI_REQUIRES(aux::is_callable<TGiven, const injector&, const arg<_, TExpected, TGiven>&>::value &&
                          !has_result_type<TGiven>::value)
     > {
         template<class>

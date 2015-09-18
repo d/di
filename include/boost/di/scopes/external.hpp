@@ -18,6 +18,10 @@ BOOST_DI_HAS_TYPE(has_result_type, result_type);
 class external {
     struct injector {
         template<class T> T create() const;
+        template<class> struct try_create;
+        template<class T, class...> _ create_impl(const aux::type<T>&) const;
+        template<class T, class...> _ create_successful_impl(const aux::type<T>&) const;
+        template<class...> struct is_creatable;
     };
 
     template<class T, class TExpected, class TGiven>
@@ -84,7 +88,7 @@ public:
     template<class TExpected, class TGiven>
     struct scope<TExpected, TGiven&,
         BOOST_DI_REQUIRES(!aux::is_callable<TGiven, const injector&>::value &&
-                          !aux::is_callable<TGiven, const injector&, const arg<aux::none_type, TExpected, TGiven>&>::value)
+                          !aux::is_callable<TGiven, const injector&, const arg<_, TExpected, TGiven>&>::value)
     > {
         template<class>
         using is_referable = std::true_type;
@@ -177,7 +181,7 @@ public:
 
     template<class TExpected, class TGiven>
     struct scope<TExpected, TGiven,
-        BOOST_DI_REQUIRES(aux::is_callable<TGiven, const injector&, const arg<aux::none_type, TExpected, TGiven>&>::value &&
+        BOOST_DI_REQUIRES(aux::is_callable<TGiven, const injector&, const arg<_, TExpected, TGiven>&>::value &&
                          !has_result_type<TGiven>::value)
     > {
         template<class>

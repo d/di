@@ -114,7 +114,8 @@ template<class TScope, class TExpected, class TGiven, class... Ts>
 class multi_bindings {
 public:
     template<class TInjector, class TArg>
-    di::aux::remove_specifiers_t<typename TArg::type>
+    //di::aux::remove_specifiers_t<typename TArg::type>
+        auto
     operator()(const TInjector& injector, const TArg&) {
         using T = di::aux::remove_specifiers_t<typename TArg::type>;
         using TArray = typename get<T>::type;
