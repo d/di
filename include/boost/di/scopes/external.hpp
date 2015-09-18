@@ -14,17 +14,18 @@
 namespace boost { namespace di { inline namespace v1 { namespace scopes {
 
 namespace detail {
-struct base_impl { void operator()(...) { } };
+
+struct callable_base_impl { void operator()(...) { } };
 
 template<class T>
-struct base : base_impl, std::conditional_t<std::is_class<T>::value, T, aux::none_type> { };
+struct callable_base : callable_base_impl, std::conditional_t<std::is_class<T>::value, T, aux::none_type> { };
 
-template<typename U>
-std::false_type is_callable_impl(U*, aux::non_type<void (base_impl::*)(...), &U::operator()>* = 0);
+template<typename T>
+std::false_type is_callable_impl(T*, aux::non_type<void (callable_base_impl::*)(...), &T::operator()>* = 0);
 std::true_type is_callable_impl(...);
 
 template<class T>
-using is_callable = decltype(is_callable_impl((base<T>*)0));
+using is_callable = decltype(is_callable_impl((callable_base<T>*)0));
 
 template<class T, class TExpected, class TGiven>
 struct arg {
@@ -114,10 +115,7 @@ public:
     };
 
     template<class TExpected, class TGiven>
-    struct scope<TExpected, TGiven,
-        BOOST_DI_REQUIRES(!detail::is_callable<TExpected>::value &&
-                           detail::is_callable<TGiven>::value &&
-                          !detail::has_result_type<TGiven>::value)> {
+    struct scope<TExpected, TGiven, BOOST_DI_REQUIRES(detail::is_callable<TGiven>::value)> {
         template<class>
         using is_referable = std::false_type;
 
@@ -129,22 +127,36 @@ public:
         T static try_create(const TProvider&);
 
         template<class, class TProvider,
+            BOOST_DI_REQUIRES((!aux::is_callable_with<TGiven, decltype(std::declval<TProvider>().injector_)>::value || detail::has_result_type<TGiven>::value/*bind*/) &&
+                               aux::is_callable_with<TGiven>::value &&
+                               aux::is_callable_with<TExpected>::value) = 0>
+        auto create(const TProvider&) const noexcept {
+            return wrappers::unique<TExpected>{object_};
+        }
+
+        template<class, class TProvider,
             BOOST_DI_REQUIRES(!aux::is_callable_with<TGiven, decltype(std::declval<TProvider>().injector_)>::value &&
-                               aux::is_callable_with<TGiven>::value) = 0>
+                               aux::is_callable_with<TGiven>::value &&
+                              !detail::is_callable<TExpected>::value
+                               ) = 0>
         auto create(const TProvider&) const noexcept {
             using wrapper = detail::wrapper_traits_t<decltype(std::declval<TGiven>()())>;
             return wrapper{object_()};
         }
 
         template<class, class TProvider,
-            BOOST_DI_REQUIRES(aux::is_callable_with<TGiven, decltype(std::declval<TProvider>().injector_)>::value) = 0>
+            BOOST_DI_REQUIRES(aux::is_callable_with<TGiven, decltype(std::declval<TProvider>().injector_)>::value
+                              && !detail::is_callable<TExpected>::value) = 0
+                >
         auto create(const TProvider& provider) noexcept {
             using wrapper = detail::wrapper_traits_t<decltype((object_)(provider.injector_))>;
             return wrapper{(object_)(provider.injector_)};
         }
 
         template<class T, class TProvider,
-            BOOST_DI_REQUIRES(aux::is_callable_with<TGiven, decltype(std::declval<TProvider>().injector_), const detail::arg<T, TExpected, TGiven>&>::value) = 0>
+            BOOST_DI_REQUIRES(aux::is_callable_with<TGiven, decltype(std::declval<TProvider>().injector_), const detail::arg<T, TExpected, TGiven>&>::value
+                          && !detail::is_callable<TExpected>::value) = 0
+                >
         auto create(const TProvider& provider) noexcept {
             using wrapper = detail::wrapper_traits_t<decltype((object_)(provider.injector_, detail::arg<T, TExpected, TGiven>{}))>;
             return wrapper{(object_)(provider.injector_, detail::arg<T, TExpected, TGiven>{})};
